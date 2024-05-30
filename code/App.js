@@ -1,85 +1,116 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, FlatList, TextInput } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StatusBar } from 'expo-status-bar';
+
+
+const availableColors = ["#4E7896", "#41B883", "#E8744F", "#B06D6D", "#FFD2D2"];
+let lastUsedColors = [];
+
 
 export default function App() {
-  const [itens, setItens] = useState({});
+
+  const [items, setItems] = useState([]);
   const [nextId, setNextId] = useState(1);
-  const [ultimasCoresUsadas, setUltimasCoresUsadas] = useState([]);
-  const [novoItemTexto, setNovoItemTexto] = useState('');
+  const [newItemText, setNewItemText] = useState('');
 
-  const coresDisponiveis = ["red", "blue", "green", "yellow", "orange"];
 
-  function gerarCorAleatoria() {
-    let coresDisponiveisTemp = [...coresDisponiveis];
-    coresDisponiveisTemp = coresDisponiveisTemp.filter(cor => !ultimasCoresUsadas.includes(cor));
+  useEffect(() => {
+    const loadItems = async () => {
+      try {
+        const savedItems = await AsyncStorage.getItem('items');
+        if (savedItems) {
+          const parsedItems = JSON.parse(savedItems);
+          setItems(parsedItems);
+          setNextId(parsedItems.length + 1);
+        }
+      } catch (error) {
+        console.error('Error loading items:', error);
+      }
+    };
 
-    if (coresDisponiveisTemp.length > 0) {
-      const indiceAleatorio = Math.floor(Math.random() * coresDisponiveisTemp.length);
-      return coresDisponiveisTemp[indiceAleatorio];
+    loadItems();
+  }, []);
+
+
+  const addItem = async () => {
+    if (newItemText.trim() !== '') {
+      const newItem = { id: nextId, text: newItemText, color: getRandomColor() };
+      const updatedItems = [...items, newItem];
+      setItems(updatedItems);
+      setNextId(nextId + 1);
+      setNewItemText('');
+
+      try {
+        await AsyncStorage.setItem('items', JSON.stringify(updatedItems));
+      } catch (error) {
+        console.error('Error saving items:', error);
+      }
+    }
+  };
+
+
+  const removeItem = async (id) => {
+    const updatedItems = items.filter(item => item.id !== id);
+    setItems(updatedItems);
+
+    try {
+      await AsyncStorage.setItem('items', JSON.stringify(updatedItems));
+    } catch (error) {
+      console.error('Error saving items:', error);
+    }
+  };
+
+
+  const getRandomColor = () => {
+    let availableColorsTemp = [...availableColors];
+    availableColorsTemp = availableColorsTemp.filter(color => !lastUsedColors.includes(color));
+
+    if (availableColorsTemp.length > 0) {
+      const randomIndex = Math.floor(Math.random() * availableColorsTemp.length);
+      const randomColor = availableColorsTemp[randomIndex];
+      lastUsedColors.push(randomColor);
+      if (lastUsedColors.length > 2) {
+        lastUsedColors.shift();
+      }
+      return randomColor;
     } else {
-      setUltimasCoresUsadas([]);
-      return gerarCorAleatoria();
+      lastUsedColors = [];
+      return getRandomColor();
     }
-  }
+  };
 
-  function adicionarItem() {
-    if (novoItemTexto.trim() !== '') {
-      let cor = gerarCorAleatoria();
-      let id = nextId;
-      let item = { id: id, texto: novoItemTexto, cor: cor };
-
-      setItens(prevItens => ({
-        ...prevItens,
-        [id]: item
-      }));
-
-      setNextId(prevId => prevId + 1);
-      setNovoItemTexto('');
-      setUltimasCoresUsadas(prevCores => {
-        return [cor, ...prevCores].slice(0, 2);
-      });
-    }
-  }
-
-  function removeItem(id) {
-    setItens(prevItens => {
-      const { [id]: omit, ...rest } = prevItens;
-      return rest;
-    });
-  }
-
-  const renderItem = ({ item }) => (
-    <TouchableOpacity onPress={() => removeItem(item.id)}>
-      <View style={[styles.item, { backgroundColor: item.cor }]}>
-        <Text>{item.texto}</Text>
-      </View>
-    </TouchableOpacity>
-  );
 
   return (
     <View style={styles.container}>
       <View style={styles.inputContainer}>
         <TextInput
           style={styles.input}
-          placeholder="Digite o texto"
-          value={novoItemTexto}
-          onChangeText={text => setNovoItemTexto(text)}
+          placeholder="Enter text"
+          value={newItemText}
+          onChangeText={text => setNewItemText(text)}
           underlineColorAndroid="transparent"
         />
-        <TouchableOpacity style={styles.button} onPress={adicionarItem}>
+        <TouchableOpacity style={styles.button} onPress={addItem}>
           <Text style={styles.buttonText}>+</Text>
         </TouchableOpacity>
       </View>
 
       <FlatList
-        data={Object.values(itens)}
-        renderItem={renderItem}
+        data={items}
+        renderItem={({ item }) => (
+          <TouchableOpacity onPress={() => removeItem(item.id)} style={[styles.item, { backgroundColor: item.color }]}>
+            <Text style={styles.itemText}>{item.text}</Text>
+          </TouchableOpacity>
+        )}
         keyExtractor={item => item.id.toString()}
       />
 
+      <StatusBar style="light" backgroundColor="#000" padding="15"/>
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -89,23 +120,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   item: {
-    width: 350,
-    height: 130,
+    width: 300,
+    height: 150,
     padding: 20,
     marginVertical: 8,
-    borderWidth: 3,
+    borderWidth: 4,
     borderRadius: 35,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  itemText: {
+    color: '#fff',
+    fontWeight:"bold",
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginVertical: 10,
+    marginTop:60,
+    marginBottom: 60,
     backgroundColor: "#D9D9D9",
     paddingHorizontal: 10,
     borderRadius: 5,
-    width: '100%', // Largura de 100%
+    width: '100%',
   },
   input: {
     flex: 1,

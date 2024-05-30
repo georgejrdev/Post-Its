@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "code",
-    "slug": "code",
+    "name": "Post Its",
+    "slug": "post-its",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -18,10 +18,17 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.georgejrdev.postits"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "owner": "georgejrdev",
+    "extra": {
+      "eas": {
+        "projectId": "59307348-8457-482c-831a-1cddfe8d206e"
+      }
     }
   }
 }
